@@ -1,0 +1,49 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// scheduler. API-facing reads and admin commands; the shard loops themselves are event-driven.
+service Scheduler {
+  rpc Result(ResultRequest) returns (ResultResponse);                 // /build/<p>/_result
+  rpc WaitResult(ResultRequest) returns (ResultResponse);             // oldstate long-poll
+  rpc Depends(DependsRequest) returns (DependsResponse);              // _builddepinfo
+  rpc Command(SchedulerCommandRequest) returns (Empty);               // rebuild/abort/wipe/restartbuild/unpublish/sendsysrq/useforbuild/suspend/resume/scanrepo/scanprjbinaries/force_publish
+  rpc Relsync(RelsyncRequest) returns (RelsyncResponse);
+  rpc RepoState(Prpa) returns (RepoStateResponse);                    // :schedulerstate + dirty + buildid
+}
+
+service SchedulerAdmin {
+  rpc ListShards(Empty) returns (ShardList);
+  rpc ShardInfo(ShardRef) returns (ShardStatus);                      // queues, lag, worst prps (schedulerinfo)
+  rpc ReleaseLease(ShardRef) returns (Empty);
+  rpc DumpPrpa(Prpa) returns (stream Chunk);                          // debug: working set as JSON
+}
+
+message ResultRequest {
+  string project = 1; repeated string repository = 2; repeated string arch = 3; repeated string package = 4;
+  repeated string code = 5; string view = 6; bool lastbuild = 7; bool multibuild = 8; bool locallink = 9; string oldstate = 10;
+  string scmrepository = 11; string scmbranch = 12;
+}
+message PackageResult { string package = 1; string code = 2; string details = 3; }
+message RepositoryResult {
+  string project = 1; string repository = 2; string arch = 3; string code = 4; string state = 5; bool dirty = 6; string details = 7;
+  repeated PackageResult status = 8; bytes binarylist_json = 9; string buildid = 10; string scmsync = 11; string scminfo = 12;
+}
+message ResultResponse { repeated RepositoryResult result = 1; string state = 2; bool retry_later = 3; }
+message DependsRequest { Prpa prpa = 1; repeated string package = 2; string view = 3; }
+message DependsResponse { bytes depends_json = 1; }
+message SchedulerCommandRequest {
+  Actor actor = 1; string idempotency_key = 2; string cmd = 3; string project = 4; repeated string repository = 5;
+  repeated string arch = 6; repeated string package = 7; string job = 8; string comment = 9;
+}
+message RelsyncRequest { Prp prp = 1; string arch = 2; bytes relsync_json = 3; bool get = 4; }
+message RelsyncResponse { bytes relsync_json = 1; }
+message RepoStateResponse { string code = 1; string details = 2; bool dirty = 3; string buildid = 4; string oldbuildid = 5; }
+message ShardRef { int32 shard_id = 1; }
+message ShardList { repeated ShardStatus shard = 1; }
+message ShardStatus {
+  int32 shard_id = 1; string owner = 2; int64 lease_expires_unix = 3; int32 queue_high = 4; int32 queue_med = 5; int32 queue_low = 6;
+  int32 queue_next = 7; int64 event_lag_ms = 8; double check_avg_s = 9; double check_variance = 10; repeated string worst_prps = 11; int64 buildavg_s = 12;
+}

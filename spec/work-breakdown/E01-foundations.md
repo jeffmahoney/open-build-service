@@ -1,0 +1,22 @@
+# E01 — Foundations
+
+Milestone M0. Inputs: `02`, `06`, `10`, analysis F § D (XML::Structured DSL,
+all 103 schemas, BSVerify rules, BSDispatch syntax), S § 1.3-1.5, § 2.5-2.7.
+
+| id | title | scope | deliverables | acceptance | depends | size |
+|---|---|---|---|---|---|---|
+| E01-T01 | Schema converter: BSXML.pm → Go schema values | `tools/bsxml-conv`, `pkg/bsxml/schemas` | one-time converter producing `schemas_gen.go` for all 103 `BSXML` schemas + `BSKiwiXML`/`BSProductXML`; checked-in output | every schema name present; converter output stable | — | M |
+| E01-T02 | `pkg/bsxml` marshaller/unmarshaller | `pkg/bsxml` | `XML::Structured` semantics: element order, attribute vs element, `[]` lists, `_content`, optional/required, unknown-element errors, escaping identical to Perl | round-trips every corpus XML byte-identically (`test/corpus/xml/**`) | T01 | L |
+| E01-T03 | `pkg/bsverify` | `pkg/bsverify` | every `verify_*` with exact regexes and error texts (project, package, repository, arch, filename, md5, rev, linkrev, prp, prpa, resultview, meta structures `verify_proj/pack/link/aggregatelist/patchinfo/channel/constraints/multibuild/service/…`) | table tests from F § D rules; error strings equal | — | M |
+| E01-T04 | Ids: srcmd5, xsrcmd5, verifymd5, servicemark, vrev arithmetic, job names, disturl | `pkg/ids` | pure functions + fuzz tests | corpus hashes reproduce (`test/corpus/ids.json`) | — | S |
+| E01-T05 | `pkg/legacyerr` error catalogue | `pkg/legacyerr`, `proto/common.proto` usage | every legacy error text referenced by Rails/osc (F § A.9, S § 3, B, P) as constants with HTTP status; gRPC detail helpers | parity tests for messages | — | S |
+| E01-T06 | Route DSL (`BSDispatch` grammar) | `internal/edge/routes` | parser for `METHOD:/path/$x key:type? cmd=…` patterns, typed param validation, form-merge, unknown-param 400, `!rw`/`!-` classes | all 279 routes in `06a` parse; dispatch tests | T03 | M |
+| E01-T07 | `pkg/prjconf` parser | `pkg/prjconf` | `Build::read_config` subset for scheduler/publisher/dispatcher: all directives in B build-path § 6.2, `%if` handling via rpm-spec preprocessor port, `Macros:` stripping mode, `FromScratch`, concatenation rules | corpus prjconfs parse to the same structure as Perl (dumped via a Perl helper) | — | L |
+| E01-T08 | `pkg/recipe` parsers | `pkg/recipe` | ports of obs-build `Build::{Rpm,Deb,Kiwi,Docker,Arch,Apk,Productcompose,Helm,Mkosi,Flatpak,Snapcraft,Appimage,Livebuild,Simpleimage,Collax,Preinstallimage}` `parse` for name/version/release/deps/prereqs/exclarch/badarch/path/containerpath/extrasource/imagetype/buildtimeservice/subpacks | diff against obs-build output on corpus recipes | — | XL → split per format family (rpm/deb; kiwi/product; containers/helm; others) |
+| E01-T09 | `pkg/meta`: gen_meta/add_meta/diffdepth/lastcheck digest | `pkg/meta` | pure-Go reference with `genmetaalgo` 0/1 | identical to `BSBuild.pm` on corpus metas | — | S |
+| E01-T10 | `pkg/solv` cgo binding | `pkg/solv` | pool/repo from solv file and from binaries, `createwhatprovides`, expander with prjconf flags, `depsort2` with SCC mode, `kiwiproductcheck`, `gen_meta` C path, `updatefrombins`, write solv | expansion results equal `BSSolv` on corpus pools (dump via Perl helper); benchmarks | T07 | L |
+| E01-T11 | `pkg/rpm`,`pkg/deb`,`pkg/arch`,`pkg/apk` header queries | those pkgs | `hdrmd5`, `leadsigmd5`, evra, provides/requires/conflicts/obsoletes/recommends/supplements, file lists, `queryhdrmd5` equivalents; `.obsbinlnk` records for containers | values equal `Build::query` on corpus binaries | — | M |
+| E01-T12 | `pkg/obscpio` | `pkg/obscpio` | cpio reader/writer (`BSHTTP::cpio_*` format, `.errors` convention), obscpio delta expand, tar writer | round-trip tests; delta expand of corpus obscpio | — | S |
+| E01-T13 | `pkg/arch` cando table | `pkg/arch` | known archs, host→buildable with personality helpers, `extend_build_arch`, cross/hostarch helpers | table equals `BSCando.pm` | — | S |
+| E01-T14 | Golden corpus v1 | `obs-ng-corpus` repo, `test/corpus` loader | Perl backend container; capture scripts for routes/state listed in `10` § 2; fixtures from `src/backend/t/data` and synthetic projects covering every feature | corpus manifest; loader API | — | L |
+| E01-T15 | `pkg/bsxpath` | `pkg/bsxpath` | OBS XPath dialect evaluator over virtual documents with indexed-key planner (`BSXPathKeys` semantics) | corpus queries equal | — | M |

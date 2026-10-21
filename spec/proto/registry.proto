@@ -1,0 +1,22 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// Internal control plane of registry-svc; the OCI distribution API itself is HTTP.
+service Registry {
+  rpc OwnRepo(OwnRepoRequest) returns (Empty);
+  rpc DisownRepo(OwnRepoRequest) returns (Empty);
+  rpc PushContainers(PushContainersRequest) returns (PushContainersResponse);   // local registry converge (push_containers)
+  rpc RepoInfo(RepoRef) returns (RepoInfoDoc);
+  rpc ManifestInfo(ManifestInfoRequest) returns (ManifestInfoDoc);
+  rpc ExtendTimestamp(RepoRef) returns (Empty);
+}
+message OwnRepoRequest { string regrepo = 1; Prp prp = 2; }
+message RepoRef { string regrepo = 1; }
+message PushContainersRequest { Prp prp = 1; string regrepo = 2; string gun = 3; bytes tags_json = 4; bytes containers_json = 5; bytes cosign_json = 6; bool cosignbundle = 7; bool notary = 8; }
+message PushContainersResponse { repeated string changed_tags = 1; bytes info_json = 2; }
+message RepoInfoDoc { bytes info_json = 1; }
+message ManifestInfoRequest { string regrepo = 1; string digest = 2; }
+message ManifestInfoDoc { bytes json = 1; }

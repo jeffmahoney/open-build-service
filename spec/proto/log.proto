@@ -1,0 +1,18 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service BuildLog {
+  rpc Append(stream LogChunk) returns (Empty);                 // worker -> log-svc
+  rpc Read(LogReadRequest) returns (LogReadResponse);
+  rpc Follow(LogReadRequest) returns (stream LogChunk);
+  rpc Size(LogReadRequest) returns (LogSize);                   // view=entry
+  rpc Promote(PromoteRequest) returns (Empty);                  // finished job -> package logfile pointers
+}
+message LogChunk { string job_id = 1; string lease_token = 2; int64 offset = 3; bytes data = 4; bool truncated = 5; }
+message LogReadRequest { string job_id = 1; Prpa prpa = 2; string package = 3; int64 start = 4; int64 end = 5; bool last = 6; bool lastsucceeded = 7; bool nostream = 8; }
+message LogReadResponse { bytes data = 1; int64 offset = 2; bool eof = 3; bool building = 4; }
+message LogSize { int64 size = 1; int64 mtime = 2; }
+message PromoteRequest { string job_id = 1; Prpa prpa = 2; string package = 3; string code = 4; }

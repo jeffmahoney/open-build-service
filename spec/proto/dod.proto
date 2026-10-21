@@ -1,0 +1,17 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service Dod {
+  rpc SyncRepos(SyncReposRequest) returns (Empty);                    // scheduler: current DoD declarations for its prpas
+  rpc MissingResources(MissingResourcesRequest) returns (Empty);      // cmd=missingdodresources
+  rpc RequestDownload(RequestDownloadRequest) returns (Empty);        // dodfetch
+  rpc GetDodData(Prpa) returns (DodDataDoc);
+}
+message DodDecl { Prpa prpa = 1; string url = 2; string repotype = 3; string archfilter = 4; bytes master_json = 5; string pubkey = 6; }
+message SyncReposRequest { int32 shard_id = 1; repeated DodDecl decl = 2; }
+message MissingResourcesRequest { Prpa prpa = 1; repeated string resource = 2; }
+message RequestDownloadRequest { Prpa prpa = 1; repeated string binaries = 2; repeated string modules = 3; }
+message DodDataDoc { string cookie = 1; PresignedURL parsed_url = 2; int64 version = 3; }

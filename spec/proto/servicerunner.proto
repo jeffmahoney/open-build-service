@@ -1,0 +1,14 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service ServiceRunner {
+  rpc ListServices(Empty) returns (ServiceList);                      // GET /service
+  rpc RunTool(RunToolRequest) returns (RunToolResponse);              // sandboxed helpers: productconvert, applylink (patch/diff3/mergechanges)
+}
+message ServiceDef { string name = 1; bool hidden = 2; string summary = 3; string description = 4; bytes parameters_json = 5; }
+message ServiceList { repeated ServiceDef service = 1; }
+message RunToolRequest { string tool = 1; repeated string args = 2; bytes input_bundle_sha256 = 3; int64 timeout_s = 4; }
+message RunToolResponse { int32 exit_code = 1; bytes output_bundle_sha256 = 2; string log = 3; }

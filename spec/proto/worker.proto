@@ -1,0 +1,56 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// Worker-facing gateway, served by dispatcher replicas.
+service WorkerGateway {
+  rpc Register(WorkerInfo) returns (RegisterResponse);
+  rpc ClaimJob(ClaimRequest) returns (JobSpec);
+  rpc Heartbeat(stream HeartbeatMsg) returns (stream ControlMsg);
+  rpc GetUploadURL(GetUploadURLRequest) returns (PresignedURL);
+  rpc GetDownloadURLs(GetDownloadURLsRequest) returns (DownloadURLs);
+  rpc UploadResult(ResultManifest) returns (UploadAck);
+  rpc SetState(WorkerState) returns (Empty);
+  rpc ReportBadhost(BadhostReport) returns (Empty);
+}
+
+message Hardware {
+  int32 processors = 1; int32 jobs = 2; int64 memory_mb = 3; int64 swap_mb = 4; int64 disk_mb = 5; repeated string cpu_flag = 6; bool nativeonly = 7; string x86_64_level = 8;
+}
+message LinuxInfo { string flavor = 1; string version = 2; }
+message WorkerInfo {
+  string worker_id = 1; string host = 2; string hostarch = 3; repeated string arch = 4; string sandbox = 5; Hardware hardware = 6;
+  LinuxInfo linux = 7; repeated string hostlabel = 8; string zone = 9; string class = 10; string agent_version = 11; string build_image_digest = 12;
+  int64 cache_bytes = 13; int64 cache_capacity = 14;
+}
+message RegisterResponse { string session_token = 1; int32 heartbeat_interval_s = 2; repeated string queue_subjects = 3; }
+message ClaimRequest { string worker_id = 1; string session_token = 2; string job_id = 3; }
+message JobSpec {
+  string job_id = 1; string jobid_md5 = 2; string job_name = 3; Prpa prpa = 4; string package = 5; string lease_token = 6; int64 lease_ttl_s = 7;
+  bytes buildinfo_json = 8;                 // full legacy buildinfo (bdep flags, path/syspath/containerpath with server URLs for legacy fallbacks)
+  string build_config = 9;                  // concatenated prjconf text
+  repeated InputRef input = 10;             // every binary/meta/blob input by digest
+  SourcesRef sources = 11;
+  PreinstallImageRef preinstall_image = 12;
+  string build_image_digest = 13;
+  int64 log_max_size = 14; int64 log_max_idle_s = 15; bool nobadhost = 16; string nobadhost_msg = 17;
+  bytes modulemd = 18; string sandbox = 19; map<string, string> vm_options = 20;
+}
+message InputRef { string name = 1; string kind = 2; bytes sha256 = 3; bytes hdrmd5 = 4; bytes metamd5 = 5; bytes meta_sha256 = 6; int64 size = 7; string prpa = 8; string repo_dir = 9; }
+message SourcesRef { bytes srcmd5 = 1; bytes verifymd5 = 2; bytes bundle_sha256 = 3; repeated InputRef extra = 4; }
+message PreinstallImageRef { bytes sha256 = 1; string prpa = 2; string package = 3; string id = 4; repeated string bins = 5; repeated bytes hdrmd5 = 6; }
+message HeartbeatMsg { string worker_id = 1; string lease_token = 2; string phase = 3; int64 log_size = 4; bytes cache_filter = 5; string state = 6; }
+message ControlMsg { oneof msg { string kill = 1; string discard = 2; string sysrq = 3; LogTailRequest logtail = 4; bool lease_renewed = 5; } }
+message LogTailRequest { int64 start = 1; int64 end = 2; string request_id = 3; }
+message GetUploadURLRequest { string lease_token = 1; int64 size = 2; }
+message GetDownloadURLsRequest { string lease_token = 1; repeated bytes sha256 = 2; }
+message DownloadURLs { map<string, PresignedURL> by_sha256_hex = 1; }
+message ResultManifest {
+  string lease_token = 1; string code = 2;                 // succeeded|failed|unchanged|badhost|genbuildreqs|dead
+  string result_key = 3; bytes result_sha256 = 4; int64 result_size = 5; int64 now_unix = 6; bool kiwitree = 7; bytes statistics_json = 8; string message = 9;
+}
+message UploadAck { bool accepted = 1; string error = 2; string next_state = 3; }
+message WorkerState { string worker_id = 1; string state = 2; }
+message BadhostReport { string worker_id = 1; string job_id = 2; string message = 3; }

@@ -1,0 +1,30 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+service Sign {
+  rpc ResolveKey(ResolveKeyRequest) returns (KeySelector);
+  rpc GenerateKey(GenerateKeyRequest) returns (KeyInfoDoc);
+  rpc ExtendKey(ExtendKeyRequest) returns (KeyInfoDoc);
+  rpc GetPublicKey(KeySelector) returns (PublicKey);
+  rpc GetCertificate(CertRequest) returns (Certificate);
+  rpc SignDigest(SignDigestRequest) returns (Signature);
+  rpc SignRpm(stream SignRpmRequest) returns (stream SignRpmResponse);
+  rpc BulkSign(stream SignDigestRequest) returns (stream Signature);
+}
+message KeySelector { string project = 1; string package = 2; string signtype = 3; string signflavor = 4; string key_ref = 5; bool default_key = 6; }
+message ResolveKeyRequest { string project = 1; string package = 2; string signtype = 3; string signflavor = 4; bool autoextend = 5; }
+message GenerateKeyRequest { string project = 1; string algo = 2; int32 expiry_days = 3; string name = 4; string email = 5; }
+message ExtendKeyRequest { KeySelector key = 1; int32 days = 2; }
+message KeyInfoDoc { string pubkey_armored = 1; string key_ref = 2; string algo = 3; int32 keysize = 4; string userid = 5; string keyid = 6; string fingerprint = 7; int64 expires_unix = 8; }
+message PublicKey { string armored = 1; string keyid = 2; string fingerprint = 3; string algo = 4; int64 expires_unix = 5; }
+message CertRequest { KeySelector key = 1; string signtype = 2; bool regenerate = 3; }
+message Certificate { string pem = 1; string serial = 2; int64 begins_unix = 3; int64 expires_unix = 4; string subject = 5; string issuer = 6; string fingerprint = 7; }
+message SignDigestRequest {
+  KeySelector key = 1;
+  enum Mode { MODE_UNSPECIFIED = 0; PGP_V3_DETACHED = 1; PGP_V4_DETACHED = 2; PGP_CLEARSIGN = 3; RAW_PKCS1 = 4; CMS_DETACHED = 5; AUTHENTICODE = 6; }
+  Mode mode = 2; string hash_algo = 3; bytes digest = 4; bytes data = 5; int64 signing_time = 6; bool armor = 7; bool binary = 8;
+}
+message Signature { bytes signature = 1; string format = 2; }
+message SignRpmRequest { KeySelector key = 1; string hash_algo = 2; bytes header_digest = 3; bytes payload_digest = 4; int64 signing_time = 5; bool delsign = 6; string file_id = 7; }
+message SignRpmResponse { string file_id = 1; bytes signature_header_packets = 2; string checksums_line = 3; }

@@ -1,0 +1,17 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service Notifier {
+  rpc LastNotifications(LastNotificationsRequest) returns (LastNotificationsResponse);
+  rpc GetPayloadURL(PayloadRef) returns (PresignedURL);
+  rpc DeletePayload(PayloadRef) returns (Empty);
+  rpc NotifyPlugins(NotifyPluginsRequest) returns (Empty);
+}
+message LastNotificationsRequest { int64 start = 1; bool block = 2; bool noprune = 3; }
+message NotificationRec { int64 number = 1; string type = 2; int64 time = 3; map<string, string> data = 4; string payload_key = 5; }
+message LastNotificationsResponse { int64 next = 1; bool sync_lost = 2; bool limit_reached = 3; repeated NotificationRec notification = 4; }
+message PayloadRef { string key = 1; }
+message NotifyPluginsRequest { string type = 1; bytes json = 2; }

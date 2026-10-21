@@ -1,0 +1,98 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// Envelope for every NATS message. Subject conventions in 05-events-and-queues.md.
+message Envelope {
+  string event_id = 1;                       // ULID
+  google.protobuf.Timestamp occurred_at = 2;
+  string source_service = 3;
+  map<string, string> trace_context = 4;     // W3C traceparent/tracestate
+  oneof payload {
+    ProjectChanged project_changed = 10;
+    ProjectDeleted project_deleted = 11;
+    PackageChanged package_changed = 12;
+    PackageDeleted package_deleted = 13;
+    ConfigChanged config_changed = 14;
+    ServiceRunState service_run_state = 15;
+    ProjectSuspend project_suspend = 16;
+
+    PoolChanged pool_changed = 20;
+    RepoState repo_state = 21;
+    PackageStatusBatch package_status = 22;
+    Unblocked unblocked = 23;
+    Relsync relsync = 24;
+    ImportJob import_job = 25;
+    JobEvent job_event = 26;
+    DispatchDetails dispatch_details = 27;
+    ScanRepo scan_repo = 28;
+    AdminCommand admin_command = 29;
+
+    PublishRequested publish_requested = 30;
+    PublishState publish_state = 31;
+    ContainerPublished container_published = 32;
+
+    Notification notification = 40;          // obs.notify.<TYPE>
+
+    JobMessage job_message = 50;             // obs.jobs.<arch>.<class>.<prio>
+    JobControl job_control = 51;             // obs.jobs.control.<arch>
+    ServiceRun service_run = 52;             // obs.service.run
+    SignJob sign_job = 53;                   // obs.sign.<flavor>
+    DodWork dod_work = 54;                   // obs.dod.*
+    RemoteEvent remote_event = 55;           // obs.remote.*
+  }
+}
+
+message ProjectChanged { string project = 1; int64 mrev = 2; bool critical = 3; bool lowprio = 4; }
+message ProjectDeleted { string project = 1; }
+message PackageChanged {
+  string project = 1; string package = 2; int64 rev = 3; bytes srcmd5 = 4;
+  enum Kind { KIND_UNSPECIFIED = 0; COMMIT = 1; META = 2; SERVICE = 3; LINK_RETARGET = 4; }
+  Kind kind = 5;
+}
+message PackageDeleted { string project = 1; string package = 2; }
+message ConfigChanged { string project = 1; bytes config_sha256 = 2; }
+message ServiceRunState { string project = 1; string package = 2; bytes servicemark = 3; string state = 4; string error = 5; }
+message ProjectSuspend { string project = 1; string job = 2; bool resume = 3; }
+
+message PoolChanged { Prpa prpa = 1; int64 full_version = 2; int64 bininfo_version = 3; bool full_changed = 4; }
+message RepoState { Prpa prpa = 1; string code = 2; string details = 3; string buildid = 4; }
+message PackageStatus { string package = 1; string code = 2; string error = 3; }
+message PackageStatusBatch { Prpa prpa = 1; repeated PackageStatus status = 2; Version version = 3; }
+message Unblocked { Prpa prpa = 1; string from_arch = 2; bool low = 3; }
+message Relsync { Prp prp = 1; string from_arch = 2; }
+message ImportJob { Prpa target = 1; string job_id = 2; string from_arch = 3; }
+message JobEvent {
+  string job_id = 1; string name = 2; Prpa prpa = 3; string package = 4;
+  enum Kind { KIND_UNSPECIFIED = 0; CREATED = 1; DISPATCHED = 2; STARTED = 3; FINISHED = 4; KILLED = 5; BADHOST = 6; SIGNING = 7; }
+  Kind kind = 5; string worker_id = 6; string result_code = 7; string result_key = 8;
+}
+message DispatchDetails { string job_id = 1; string details = 2; }
+message ScanRepo { Prpa prpa = 1; }
+message AdminCommand {
+  enum Kind { KIND_UNSPECIFIED = 0; REBUILD = 1; RECHECK = 2; ADMINCHECK = 3; WIPE = 4; WIPEALLARCH = 5; USEFORBUILD = 6; SCANPRJBINARIES = 7; FORCE_PUBLISH = 8; CONFIGURATION = 9; }
+  Kind kind = 1; string project = 2; string repository = 3; string arch = 4; repeated string packages = 5;
+}
+
+message PublishRequested { Prp prp = 1; map<string, int64> repoinfo_versions = 2; google.protobuf.Timestamp first_requested_at = 3; }
+message PublishState { Prp prp = 1; string state = 2; string publishid = 3; string details = 4; }
+message ContainerPublished { Prp prp = 1; string container_ref = 2; string digest = 3; string publishid = 4; }
+
+message Notification { string type = 1; map<string, string> params = 2; bytes payload_sha256 = 3; }
+
+message JobMessage {
+  string job_id = 1; string arch = 2; string class = 3; int32 priority = 4;
+  repeated string hinted_workers = 5; string zone = 6; google.protobuf.Timestamp readytime = 7;
+  bytes buildinfo_sha256 = 8;
+}
+message JobControl { string job_id = 1; enum Kind { KIND_UNSPECIFIED = 0; KILL = 1; DISCARD = 2; SYSRQ = 3; } Kind kind = 2; string arg = 3; }
+message ServiceRun {
+  string project = 1; string package = 2; bytes servicemark = 3; bytes srcmd5 = 4; int64 rev = 5;
+  bytes link_srcmd5 = 6; bytes project_services_md5 = 7; bytes old_srcmd5 = 8; bool obsscm = 9; string run_id = 10;
+}
+message SignJob { string job_id = 1; string arch = 2; string flavor = 3; }
+message DodWork { int64 repo_id = 1; enum Kind { KIND_UNSPECIFIED = 0; REFRESH = 1; DOWNLOAD = 2; } Kind kind = 2; repeated string resources = 3; }
+message RemoteEvent { string remoteurl = 1; string local_project = 2; string type = 3; string package = 4; string repository = 5; string arch = 6; }

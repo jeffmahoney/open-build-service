@@ -1,0 +1,215 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// source-svc. Semantics: services/source-svc.md, analysis S.
+service Source {
+  // --- projects ---
+  rpc ListProjects(ListProjectsRequest) returns (stream ProjectRef);
+  rpc GetProject(GetProjectRequest) returns (Project);
+  rpc PutProject(PutProjectRequest) returns (Project);
+  rpc DeleteProject(DeleteProjectRequest) returns (Empty);
+  rpc UndeleteProject(UndeleteProjectRequest) returns (Project);
+  rpc CopyProject(CopyProjectRequest) returns (Empty);
+  rpc MoveProject(MoveProjectRequest) returns (Empty);
+  rpc FreezeProjectLink(FreezeProjectLinkRequest) returns (Empty);
+  rpc GetProjectConfig(GetProjectConfigRequest) returns (ProjectConfig);
+  rpc PutProjectConfig(PutProjectConfigRequest) returns (Empty);
+  rpc DeleteProjectConfig(DeleteProjectConfigRequest) returns (Empty);
+  rpc GetKeyInfo(GetKeyInfoRequest) returns (KeyInfo);
+  rpc ManageKey(ManageKeyRequest) returns (KeyInfo);          // createkey | extendkey | recreatesslcert | deletekey
+  rpc GetPubkey(GetPubkeyRequest) returns (Pubkey);
+
+  // --- packages ---
+  rpc ListPackages(ListPackagesRequest) returns (stream PackageRef);
+  rpc GetPackage(GetPackageRequest) returns (Package);
+  rpc PutPackage(PutPackageRequest) returns (Package);
+  rpc DeletePackage(DeletePackageRequest) returns (Empty);
+  rpc UndeletePackage(UndeletePackageRequest) returns (Package);
+  rpc LockPackage(LockPackageRequest) returns (Empty);
+  rpc GetPackageHistory(GetPackageHistoryRequest) returns (stream RevisionRecord);
+
+  // --- files and revisions ---
+  rpc GetFileList(GetFileListRequest) returns (FileList);
+  rpc GetFile(GetFileRequest) returns (stream Chunk);
+  rpc GetFileURL(GetFileRequest) returns (PresignedURL);
+  rpc PutFile(stream PutFileRequest) returns (Revision);
+  rpc DeleteFile(DeleteFileRequest) returns (Revision);
+  rpc CommitFileList(CommitFileListRequest) returns (CommitFileListResponse);
+  rpc Commit(CommitRequest) returns (Revision);
+  rpc Branch(BranchRequest) returns (Revision);
+  rpc Copy(CopyRequest) returns (CopyResponse);
+  rpc LinkToBranch(LinkToBranchRequest) returns (Revision);
+  rpc Diff(DiffRequest) returns (stream Chunk);                // cmd=diff|linkdiff|servicediff, all views
+  rpc Blame(BlameRequest) returns (stream Chunk);
+  rpc GetSourcesCpio(GetSourcesRequest) returns (stream Chunk);
+  rpc GetSourcesURL(GetSourcesRequest) returns (PresignedURL); // tar/cpio bundle object
+  rpc GetSourceInfo(GetSourceInfoRequest) returns (stream SourceInfo);
+  rpc ParseUploadedRecipe(stream ParseUploadedRecipeRequest) returns (SourceInfo);
+  rpc DeleteUploadRev(DeleteUploadRevRequest) returns (Empty);
+  rpc OrderKiwiRepos(OrderKiwiReposRequest) returns (OrderKiwiReposResponse);
+
+  // --- services ---
+  rpc RunService(RunServiceRequest) returns (Revision);
+  rpc WaitService(WaitServiceRequest) returns (stream ServiceState);
+  rpc MergeService(MergeServiceRequest) returns (Revision);
+  rpc GetProjectServices(GetProjectServicesRequest) returns (ProjectServices);
+  rpc CommitServiceResult(CommitServiceResultRequest) returns (Empty);   // from service-runner
+  rpc CommitObsScm(CommitObsScmRequest) returns (Empty);                 // from service-runner
+  rpc TriggerScmSync(TriggerScmSyncRequest) returns (Empty);
+  rpc NotifyPackageChange(NotifyPackageChangeRequest) returns (Empty);
+
+  // --- scheduler contract ---
+  rpc GetProjPack(GetProjPackRequest) returns (stream ProjPackChunk);
+  rpc GetProjPackDelta(GetProjPackDeltaRequest) returns (stream ProjPackChunk);
+  rpc GetConfig(GetConfigRequest) returns (BuildConfig);
+  rpc GetModulemd(GetModulemdRequest) returns (Modulemd);
+  rpc CollectBuildEnv(CollectBuildEnvRequest) returns (Empty);
+  rpc GetConstraints(GetConstraintsRequest) returns (ConstraintsDoc);
+
+  // --- streams, config ---
+  rpc LastEvents(LastEventsRequest) returns (stream LastEventsResponse);
+  rpc NewEvent(NewEventRequest) returns (Empty);
+  rpc GetConfiguration(Empty) returns (ConfigurationDoc);
+  rpc PutConfiguration(PutConfigurationRequest) returns (Empty);
+  rpc GetIssueTrackers(Empty) returns (IssueTrackersDoc);
+  rpc PutIssueTrackers(PutIssueTrackersRequest) returns (Empty);
+  rpc ExtractIssues(ExtractIssuesRequest) returns (IssuesDoc);
+  rpc SearchPackagesSimple(SearchPackagesSimpleRequest) returns (stream PackageRef); // hot-path XPath shapes
+}
+
+message ProjectRef { string name = 1; bool deleted = 2; }
+message ListProjectsRequest { bool deleted = 1; repeated string project = 2; }
+
+message GetProjectRequest { string project = 1; string rev = 2; bool withconfig = 3; bool interconnect = 4; bool deleted = 5; }
+message Project {
+  string name = 1; bytes meta_json = 2;       // canonical JSON of BSXML::proj; compat-edge renders XML
+  int64 mrev = 3; string config = 4; string remoteurl = 5; string remoteproject = 6; bool is_remote = 7;
+}
+message PutProjectRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; bytes meta_json = 4; }
+message DeleteProjectRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; }
+message UndeleteProjectRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; }
+message CopyProjectRequest {
+  Actor actor = 1; string idempotency_key = 2; string project = 3; string oproject = 4;
+  bool withbinaries = 5; bool withhistory = 6; bool makeolder = 7; bool makeoriginolder = 8; bool resign = 9; bool noservice = 10;
+}
+message MoveProjectRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string oproject = 4; }
+message FreezeProjectLinkRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; }
+message GetProjectConfigRequest { string project = 1; string rev = 2; }
+message ProjectConfig { string text = 1; int64 rev = 2; }
+message PutProjectConfigRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string text = 4; }
+message DeleteProjectConfigRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; }
+message GetKeyInfoRequest { string project = 1; bool withsslcert = 2; bool autoextend = 3; bool donotcreatecert = 4; string signtype = 5; }
+message KeyInfo { bytes keyinfo_json = 1; }
+message ManageKeyRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string op = 4; int32 days = 5; }
+message GetPubkeyRequest { string project = 1; string rev = 2; bool autoextend = 3; string signtype = 4; string signflavor = 5; }
+message Pubkey { string armored = 1; }
+
+message PackageRef { string project = 1; string name = 2; string originproject = 3; string originpackage = 4; bool deleted = 5; }
+message ListPackagesRequest { string project = 1; bool deleted = 2; bool expand = 3; bool noorigins = 4; }
+message GetPackageRequest { string project = 1; string package = 2; string rev = 3; bool meta = 4; bool deleted = 5; string view = 6; bool interconnect = 7; }
+message Package { string project = 1; string name = 2; bytes meta_json = 3; int64 mrev = 4; }
+message PutPackageRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; bytes meta_json = 5; }
+message DeletePackageRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; }
+message UndeletePackageRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; int64 time = 5; }
+message LockPackageRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; bool unlock = 5; }
+message GetPackageHistoryRequest { string project = 1; string package = 2; string rev = 3; bool meta = 4; bool deleted = 5; int32 limit = 6; int64 startbefore = 7; }
+message RevisionRecord { int64 rev = 1; string vrev = 2; bytes srcmd5 = 3; string version = 4; int64 time = 5; string user = 6; string comment = 7; string requestid = 8; }
+
+message GetFileListRequest {
+  string project = 1; string package = 2; string rev = 3; string linkrev = 4; bool expand = 5; bool emptylink = 6;
+  bool deleted = 7; string view = 8; string extension = 9; bool lastworking = 10; bool withlinked = 11; bool meta = 12; bool product = 13;
+}
+message FileEntry { string name = 1; bytes md5 = 2; int64 size = 3; int64 mtime = 4; bytes sha256 = 5; }
+message LinkInfo { string project = 1; string package = 2; string rev = 3; string baserev = 4; bool missingok = 5; bytes srcmd5 = 6; bytes lsrcmd5 = 7; bytes xsrcmd5 = 8; string error = 9; bytes lastworking = 10; repeated LinkedRef linked = 11; }
+message LinkedRef { string project = 1; string package = 2; }
+message ServiceInfo { string code = 1; bytes xsrcmd5 = 2; bytes lsrcmd5 = 3; string error = 4; }
+message FileList {
+  string name = 1; string rev = 2; string vrev = 3; bytes srcmd5 = 4; repeated FileEntry entry = 5;
+  LinkInfo linkinfo = 6; ServiceInfo serviceinfo = 7; string originproject = 8; string originpackage = 9;
+}
+message GetFileRequest { string project = 1; string package = 2; string filename = 3; string rev = 4; bool expand = 5; bool meta = 6; bool deleted = 7; }
+message PutFileRequest {
+  oneof msg { PutFileHeader header = 1; Chunk chunk = 2; }
+}
+message PutFileHeader { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string filename = 5; string rev = 6; bool keeplink = 7; bool force = 8; bool meta = 9; Blob blob = 10; }
+message DeleteFileRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string filename = 5; string rev = 6; bool keeplink = 7; bool meta = 8; }
+message Revision { int64 rev = 1; string vrev = 2; bytes srcmd5 = 3; string version = 4; int64 time = 5; string user = 6; string comment = 7; string requestid = 8; bytes xsrcmd5 = 9; FileList filelist = 10; }
+
+message CommitFileListRequest {
+  Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4;
+  repeated FileEntry entry = 5; bool withvalidate = 6; bytes servicemark = 7; int64 time = 8; string version = 9; string vrev = 10;
+  bool keeplink = 11; bool noservice = 12; string rev = 13;
+}
+message CommitFileListResponse { bool missing = 1; repeated FileEntry missing_entry = 2; Revision revision = 3; }
+message CommitRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string rev = 5; bool keeplink = 6; bool repairlink = 7; string linkrev = 8; string setrev = 9; bool noservice = 10; }
+message BranchRequest {
+  Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string oproject = 5; string opackage = 6;
+  string orev = 7; string olinkrev = 8; bool missingok = 9; bool extendvrev = 10; bool keepcontent = 11; bool noservice = 12; bool simplelink = 13;
+}
+message CopyRequest {
+  Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string oproject = 5; string opackage = 6;
+  string orev = 7; string olinkrev = 8; bool expand = 9; bool keeplink = 10; bool repairlink = 11; string linkrev = 12;
+  bool withvrev = 13; int32 vrevbump = 14; bool noservice = 15; bool dontupdatesource = 16; bool withacceptinfo = 17;
+  bool instantiate = 18; bool makeoriginolder = 19; bool freezelink = 20; string rev = 21;
+}
+message CopyResponse { Revision revision = 1; bytes acceptinfo_json = 2; }
+message LinkToBranchRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string linkrev = 5; string rev = 6; }
+message DiffRequest {
+  string project = 1; string package = 2; string kind = 3;   // diff | linkdiff | servicediff
+  string rev = 4; string orev = 5; string oproject = 6; string opackage = 7; bool expand = 8; string linkrev = 9; string olinkrev = 10;
+  bool unified = 11; bool missingok = 12; bool meta = 13; string file = 14; int64 filelimit = 15; int64 tarlimit = 16; string view = 17;
+  bool withissues = 18; bool onlyissues = 19; bool cacheonly = 20; bool nodiff = 21;
+}
+message BlameRequest { string project = 1; string package = 2; string filename = 3; string rev = 4; bool expand = 5; }
+message GetSourcesRequest { string project = 1; string package = 2; bytes srcmd5 = 3; }
+message GetSourceInfoRequest { string project = 1; repeated string package = 2; bool parse = 3; bool nofilename = 4; string repository = 5; string arch = 6; bool withchangesmd5 = 7; bool noexpand = 8; bool withmetamd5 = 9; string rev = 10; }
+message SourceInfo { string package = 1; bytes info_json = 2; }
+message ParseUploadedRecipeRequest { oneof msg { GetSourceInfoRequest header = 1; Chunk chunk = 2; } }
+message DeleteUploadRevRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; }
+message OrderKiwiReposRequest { bytes repos_json = 1; }
+message OrderKiwiReposResponse { bytes repos_json = 1; }
+
+message RunServiceRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; }
+message WaitServiceRequest { string project = 1; string package = 2; }
+message ServiceState { string code = 1; string error = 2; }
+message MergeServiceRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; }
+message GetProjectServicesRequest { string project = 1; string package = 2; }
+message ProjectServices { bytes services_json = 1; }
+message CommitServiceResultRequest {
+  string project = 1; string package = 2; bytes servicemark = 3; string run_id = 4;
+  repeated FileEntry result = 5; string error = 6; bytes lsrcmd5 = 7; bytes lxsrcmd5 = 8; bool transient = 9;
+}
+message CommitObsScmRequest { Actor actor = 1; string project = 2; string package = 3; bytes servicemark = 4; string run_id = 5; bytes srcmd5 = 6; string info = 7; bytes project_cpio_sha256 = 8; }
+message TriggerScmSyncRequest { string scmrepository = 1; string scmbranch = 2; bool isdefaultbranch = 3; }
+message NotifyPackageChangeRequest { string project = 1; string package = 2; }
+
+message GetProjPackRequest {
+  repeated string project = 1; repeated string repository = 2; repeated string package = 3; string arch = 4;
+  bool withrepos = 5; bool withsrcmd5 = 6; bool withdeps = 7; bool withconfig = 8; bool expandedrepos = 9; bool ignoredisable = 10;
+  bool nopackages = 11; bool withremotemap = 12; bool remotemaponly = 13; bool noremote = 14; bool parseremote = 15; bool buildinfo = 16;
+  int32 shard_id = 17;
+}
+message GetProjPackDeltaRequest { int32 shard_id = 1; string arch = 2; string cursor = 3; }
+message ProjPackChunk { oneof msg { bytes project_json = 1; bytes remotemap_entry_json = 2; bytes channeldata_json = 3; string repoid = 4; string cursor = 5; } }
+message GetConfigRequest { string project = 1; string repository = 2; repeated string path = 3; }
+message BuildConfig { string text = 1; bytes sha256 = 2; }
+message GetModulemdRequest { string project = 1; string package = 2; string rev = 3; }
+message Modulemd { bytes yaml = 1; }
+message CollectBuildEnvRequest { Actor actor = 1; string idempotency_key = 2; string project = 3; string package = 4; string oproject = 5; string opackage = 6; string repository = 7; string arch = 8; }
+message GetConstraintsRequest { string project = 1; string package = 2; bytes srcmd5 = 3; }
+message ConstraintsDoc { bytes constraints_json = 1; bytes md5 = 2; }
+
+message LastEventsRequest { repeated string filter = 1; int64 start = 2; bool block = 3; string obsname = 4; string client = 5; }
+message LastEvent { int64 number = 1; int64 time = 2; string type = 3; string project = 4; string package = 5; string repository = 6; string arch = 7; }
+message LastEventsResponse { int64 next = 1; bool sync_lost = 2; repeated LastEvent event = 3; }
+message NewEventRequest { string type = 1; string project = 2; string package = 3; string repository = 4; string arch = 5; string job = 6; }
+message ConfigurationDoc { bytes xml = 1; }
+message PutConfigurationRequest { bytes xml = 1; }
+message IssueTrackersDoc { bytes xml = 1; }
+message PutIssueTrackersRequest { bytes xml = 1; }
+message ExtractIssuesRequest { string text = 1; }
+message IssuesDoc { bytes xml = 1; }
+message SearchPackagesSimpleRequest { string kind = 1; map<string, string> args = 2; }

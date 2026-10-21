@@ -1,0 +1,97 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// artifact-svc: binary pools, results, buildinfo, published staging.
+service Artifact {
+  // scheduler-facing
+  rpc IntegrateResult(IntegrateResultRequest) returns (IntegrateResultResponse);
+  rpc GetPoolIndex(GetPoolIndexRequest) returns (PoolIndex);
+  rpc GetFull(Prpa) returns (stream FullEntry);
+  rpc CheckUseforbuild(CheckUseforbuildRequest) returns (IntegrateResultResponse);
+  rpc Wipe(WipeRequest) returns (IntegrateResultResponse);
+  rpc SetRepoPool(SetRepoPoolRequest) returns (Version);
+  rpc GetRepoPool(GetRepoPoolRequest) returns (RepoPool);
+  rpc GetBininfo(GetBininfoRequest) returns (stream BininfoEntry);
+  rpc GetPackStatus(Prpa) returns (PackStatus);                     // cross-shard read of package_status
+  rpc RegisterPreinstallImage(RegisterPreinstallImageRequest) returns (Empty);
+  rpc AddDodBinary(AddDodBinaryRequest) returns (Empty);
+  rpc Verify(Prpa) returns (VerifyResponse);                       // consistency check/repair
+
+  // dispatcher-facing
+  rpc ValidateResult(ValidateResultRequest) returns (ValidateResultResponse);
+
+  // API/worker-facing (via compat-edge or presigned)
+  rpc ListPackages(ListPackagesBuildRequest) returns (stream BuildPackageRef);
+  rpc BinaryList(BinaryListRequest) returns (BinaryListDoc);          // view=names|binaryversions|binarychecksums|fileinfo|...
+  rpc GetBinaryURL(GetBinaryRequest) returns (PresignedURL);
+  rpc GetBinaryStream(GetBinaryRequest) returns (stream Chunk);
+  rpc GetBinariesCpio(GetBinariesCpioRequest) returns (stream Chunk);
+  rpc GetBinaryVersions(GetBinaryVersionsRequest) returns (BinaryVersions);
+  rpc GetPackageBinaryVersionList(GetBinaryVersionsRequest) returns (BinaryVersions);
+  rpc PutBinary(stream PutBinaryRequest) returns (Empty);
+  rpc DeleteBinary(DeleteBinaryRequest) returns (Empty);
+  rpc BuildInfo(BuildInfoRequest) returns (BuildInfoResponse);      // _buildinfo GET/POST
+  rpc PackageFiles(PackageFilesRequest) returns (PackageFilesResponse); // status, reason, history, _buildenv, _statistics, rpmlint.log, .stats
+  rpc JobHistory(JobHistoryRequest) returns (stream JobHistoryEntry);
+  rpc CopyBuild(CopyBuildRequest) returns (Empty);
+  rpc UploadBuild(stream UploadBuildRequest) returns (Empty);
+  rpc AvailableBinaries(AvailableBinariesRequest) returns (AvailableBinariesResponse);
+  rpc SlsaAddRefs(SlsaAddRefsRequest) returns (Empty);
+  rpc GetSlsaMaterialURL(GetSlsaMaterialRequest) returns (PresignedURL);
+  rpc Ymp(YmpRequest) returns (stream Chunk);
+}
+
+message IntegrateResultRequest {
+  Prpa prpa = 1; string package = 2; string job_id = 3; string result_key = 4; string result_code = 5;   // succeeded|failed|unchanged|genbuildreqs
+  bytes buildinfo_json = 6; bool nouseforbuild = 7; bool preinstallimage = 8; string import_arch = 9;
+}
+message IntegrateResultResponse { bool full_changed = 1; bool bininfo_changed = 2; int64 full_version = 3; repeated ImportJobRef export = 4; bytes meta_sha256 = 5; }
+message ImportJobRef { string target_arch = 1; string job_id = 2; }
+message GetPoolIndexRequest { Prpa prpa = 1; repeated string modules = 2; int64 known_version = 3; }
+message PoolIndex { int64 full_version = 1; string solv_key = 2; PresignedURL solv_url = 3; repeated string notready = 4; repeated string missing_modules = 5; bool unchanged = 6; string error = 7; }
+message FullEntry { string binname = 1; bytes bin_sha256 = 2; bytes meta_sha256 = 3; string owner_package = 4; bytes hdrmd5 = 5; string filename = 6; }
+message CheckUseforbuildRequest { Prpa prpa = 1; repeated string useforbuild_packages = 2; }
+message WipeRequest { Prpa prpa = 1; repeated string package = 2; bool allarch = 3; bool obsolete_only = 4; repeated string keep_packages = 5; }
+message RepoPoolEntry { string filename = 1; bytes bin_sha256 = 2; string origin_package = 3; }
+message SetRepoPoolRequest { Prpa prpa = 1; repeated RepoPoolEntry entry = 2; bytes conflicts_json = 3; bytes archsync_json = 4; bool wipe = 5; }
+message GetRepoPoolRequest { Prp prp = 1; }
+message RepoPool { map<string, RepoPoolArch> by_arch = 1; }
+message RepoPoolArch { int64 version = 1; repeated RepoPoolEntry entry = 2; bytes conflicts_json = 3; bytes archsync_json = 4; }
+message GetBininfoRequest { Prpa prpa = 1; repeated string package = 2; string cookie = 3; }
+message BininfoEntry { string package = 1; bytes bininfo_json = 2; string cookie = 3; }
+message PackStatus { map<string, string> code = 1; map<string, string> error = 2; Version version = 3; }
+message RegisterPreinstallImageRequest { Prpa prpa = 1; string package = 2; bytes info_json = 3; }
+message AddDodBinaryRequest { Prpa prpa = 1; string binname = 2; bytes bin_sha256 = 3; bytes hdrmd5 = 4; bytes bininfo_json = 5; }
+message VerifyResponse { bool consistent = 1; repeated string findings = 2; bool repaired = 3; }
+
+message ValidateResultRequest { string job_id = 1; string result_key = 2; string code = 3; bool kiwitree = 4; }
+message ValidateResultResponse { bool ok = 1; string error = 2; bool needs_signing = 3; bytes bininfo_json = 4; string normalized_result_key = 5; }
+
+message ListPackagesBuildRequest { Prpa prpa = 1; string view = 2; }
+message BuildPackageRef { string name = 1; }
+message BinaryListRequest { Prpa prpa = 1; string package = 2; string view = 3; repeated string binary = 4; bool nometa = 5; bool noajax = 6; bool noimport = 7; bool withccache = 8; repeated string modules = 9; }
+message BinaryListDoc { bytes list_json = 1; }
+message GetBinaryRequest { Prpa prpa = 1; string package = 2; string filename = 3; string view = 4; bool withfilelist = 5; }
+message GetBinariesCpioRequest { Prpa prpa = 1; repeated string binaries = 2; bool withannotation = 3; repeated string modules = 4; bool nometa = 5; }
+message GetBinaryVersionsRequest { Prpa prpa = 1; repeated string binaries = 2; bool withevr = 3; bool nometa = 4; repeated string modules = 5; string package = 6; }
+message BinaryVersions { bytes versions_json = 1; }
+message PutBinaryRequest { oneof msg { PutBinaryHeader header = 1; Chunk chunk = 2; } }
+message PutBinaryHeader { Actor actor = 1; Prpa prpa = 2; string filename = 3; bool ignoreolder = 4; bool wipe = 5; }
+message DeleteBinaryRequest { Actor actor = 1; Prpa prpa = 2; string filename = 3; }
+message BuildInfoRequest { Prpa prpa = 1; string package = 2; bool internal = 3; bool debug = 4; repeated string add = 5; bytes uploaded_cpio_sha256 = 6; bool striphdrmd5 = 7; }
+message BuildInfoResponse { bytes buildinfo_json = 1; string error = 2; }
+message PackageFilesRequest { Prpa prpa = 1; string package = 2; string kind = 3; }
+message PackageFilesResponse { bytes content = 1; string content_type = 2; }
+message JobHistoryRequest { Prpa prpa = 1; repeated string package = 2; repeated string code = 3; int32 limit = 4; int64 endtime_start = 5; int64 endtime_end = 6; }
+message JobHistoryEntry { string package = 1; string rev = 2; bytes srcmd5 = 3; string versrel = 4; int32 bcnt = 5; int64 readytime = 6; int64 starttime = 7; int64 endtime = 8; string code = 9; string uri = 10; string workerid = 11; string hostarch = 12; string reason = 13; }
+message CopyBuildRequest { Actor actor = 1; string idempotency_key = 2; Prpa target = 3; string package = 4; Prpa source = 5; string opackage = 6; string setupdateinfoid = 7; bool resign = 8; string setrelease = 9; bool multibuild = 10; }
+message UploadBuildRequest { oneof msg { UploadBuildHeader header = 1; Chunk chunk = 2; } }
+message UploadBuildHeader { Actor actor = 1; Prpa prpa = 2; string package = 3; }
+message AvailableBinariesRequest { string project = 1; repeated string url = 2; repeated string path = 3; }
+message AvailableBinariesResponse { bytes result_json = 1; }
+message SlsaAddRefsRequest { Prpa prpa = 1; map<string, string> refs = 2; bytes config_sha256 = 3; string config_text = 4; }
+message GetSlsaMaterialRequest { Prpa prpa = 1; string filename = 2; bytes sha256 = 3; }
+message YmpRequest { Prpa prpa = 1; string binary = 2; }

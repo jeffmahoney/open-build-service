@@ -1,0 +1,44 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+// dispatcher: scheduler-facing job submission and API-facing worker/job views.
+service Dispatcher {
+  rpc SubmitJob(SubmitJobRequest) returns (JobRef);
+  rpc KillJob(KillJobRequest) returns (Empty);                 // kill | discard | restart
+  rpc SetDispatchDetails(SetDispatchDetailsRequest) returns (Empty);
+  rpc JobStatus(JobRef) returns (JobStatusDoc);
+  rpc ListJobs(ListJobsRequest) returns (stream JobSummary);
+  rpc WorkerStatus(Empty) returns (WorkerStatusDoc);
+  rpc WorkerInfo(WorkerRef) returns (WorkerInfoDoc);
+  rpc CheckConstraints(CheckConstraintsRequest) returns (CheckConstraintsResponse);
+  rpc GetDispatchPrios(Empty) returns (DispatchPrios);
+  rpc SetDispatchPrios(DispatchPrios) returns (Empty);
+  rpc SendSysrq(SendSysrqRequest) returns (Empty);
+  rpc BadhostTable(Empty) returns (stream BadhostEntry);
+}
+
+message SubmitJobRequest {
+  string job_name = 1; Prpa prpa = 2; string package = 3; bytes srcmd5 = 4; bytes verifymd5 = 5; string versrel = 6; int32 bcnt = 7;
+  bytes buildinfo_json = 8; bytes constraints_json = 9; string prjconf_constraints = 10; repeated string recipe_constraints = 11;
+  int32 needed = 12; int64 readytime = 13; int64 revtime = 14; string reason = 15; string hostarch = 16; string file = 17;
+  bytes constraintsmd5 = 18; repeated BdepDigest bdep_digest = 19; string build_image_digest = 20; bool nobadhost = 21;
+}
+message BdepDigest { string name = 1; bytes hdrmd5 = 2; bytes metamd5 = 3; bytes sha256 = 4; int64 size = 5; }
+message JobRef { string job_id = 1; string job_name = 2; }
+message KillJobRequest { Actor actor = 1; string job_id = 2; string kind = 3; }
+message SetDispatchDetailsRequest { string job_id = 1; string details = 2; }
+message JobStatusDoc { string code = 1; string result = 2; string details = 3; int64 starttime = 4; int64 endtime = 5; string workerid = 6; string hostarch = 7; string uri = 8; string arch = 9; string job = 10; string jobid = 11; int32 attempt = 12; }
+message ListJobsRequest { string arch = 1; string state = 2; Prpa prpa = 3; }
+message JobSummary { string job_id = 1; string job_name = 2; string state = 3; Prpa prpa = 4; string package = 5; string worker_id = 6; int64 readytime = 7; int32 priority = 8; }
+message WorkerStatusDoc { bytes workerstatus_json = 1; }    // rendered by compat-edge to $BSXML::workerstatus
+message WorkerRef { string worker_id = 1; }
+message WorkerInfoDoc { bytes worker_json = 1; }
+message CheckConstraintsRequest { string project = 1; string package = 2; string repository = 3; string arch = 4; bytes constraints_json = 5; }
+message CheckConstraintsResponse { repeated string compliant_workers = 1; int32 total_workers = 2; string hint = 3; }
+message DispatchPrio { string project = 1; string repository = 2; string arch = 3; int32 adjust = 4; }
+message DispatchPrios { repeated DispatchPrio prio = 1; }
+message SendSysrqRequest { string job_id = 1; string key = 2; }
+message BadhostEntry { string key = 1; int64 expires_unix = 2; int32 attempts = 3; }

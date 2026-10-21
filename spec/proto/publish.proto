@@ -1,0 +1,26 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service Publisher {
+  rpc Status(Prp) returns (PublishStatus);                       // /published/<p>/<r>?view=status
+  rpc ListPublished(ListPublishedRequest) returns (PublishedListing);
+  rpc GetPublishedFileURL(PublishedFileRequest) returns (PresignedURL);
+  rpc PublishedPath(PublishedPathRequest) returns (PublishedPathResponse);
+  rpc Unpublish(UnpublishRequest) returns (Empty);              // unpublish | wipepublishedlocked
+  rpc ForcePublish(Prp) returns (Empty);
+  rpc ListVersions(Prp) returns (VersionList);
+  rpc Rollback(RollbackRequest) returns (Empty);
+}
+message PublishStatus { string code = 1; string details = 2; int64 starttime = 3; int64 endtime = 4; string publishid = 5; bytes repoinfo_json = 6; }
+message ListPublishedRequest { string project = 1; string repository = 2; string arch = 3; string path = 4; }
+message PublishedEntry { string name = 1; int64 size = 2; int64 mtime = 3; bool dir = 4; string link_target = 5; }
+message PublishedListing { repeated PublishedEntry entry = 1; }
+message PublishedFileRequest { string project = 1; string repository = 2; string path = 3; string view = 4; }
+message PublishedPathRequest { Prpa prpa = 1; string binary = 2; string medium = 3; }
+message PublishedPathResponse { string path = 1; string url = 2; }
+message UnpublishRequest { Actor actor = 1; Prp prp = 2; repeated string package = 3; bool locked = 4; }
+message VersionList { repeated string publishid = 1; string current = 2; }
+message RollbackRequest { Actor actor = 1; Prp prp = 2; string publishid = 3; }

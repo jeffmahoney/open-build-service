@@ -1,0 +1,69 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// Who performs a mutation. The backend records it; it does not authorize it.
+message Actor {
+  string user = 1;        // legacy user= parameter (login or "_service", "buildservice-autocommit", ...)
+  string comment = 2;
+  string requestid = 3;
+  bool lowprio = 4;       // lowprioproject semantics for project meta writes
+}
+
+// Exact legacy error surface for compat-edge.
+message LegacyError {
+  int32 http_status = 1;  // 400, 403, 404, 409, 500, ...
+  string summary = 2;     // first line of the Perl die() message
+  string details = 3;
+}
+
+message Prp { string project = 1; string repository = 2; }
+message Prpa { string project = 1; string repository = 2; string arch = 3; }
+
+message Digest {
+  enum Algo { ALGO_UNSPECIFIED = 0; MD5 = 1; SHA256 = 2; }
+  Algo algo = 1;
+  bytes value = 2;
+}
+
+message Blob {              // a content-addressed object
+  bytes sha256 = 1;
+  bytes md5 = 2;            // always present for source blobs (legacy identity)
+  int64 size = 3;
+}
+
+message PresignedURL {
+  string url = 1;
+  string method = 2;        // GET | PUT
+  map<string, string> headers = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message Empty {}
+
+message Chunk { bytes data = 1; }
+
+// Flag evaluation result per repository/arch (BSUtil::enabled semantics are applied by the producer).
+message FlagState {
+  string repository = 1;    // empty = default
+  string arch = 2;          // empty = default
+  bool enabled = 3;
+}
+message Flags {
+  repeated FlagState build = 1;
+  repeated FlagState publish = 2;
+  repeated FlagState useforbuild = 3;
+  repeated FlagState debuginfo = 4;
+  repeated FlagState binarydownload = 5;
+  repeated FlagState sourceaccess = 6;
+  repeated FlagState access = 7;
+  repeated FlagState lock = 8;
+}
+
+message Page { int32 limit = 1; string cursor = 2; }
+message PageResult { string next_cursor = 1; bool limited = 2; }
+
+// Row version for optimistic concurrency and event staleness checks.
+message Version { int64 value = 1; }

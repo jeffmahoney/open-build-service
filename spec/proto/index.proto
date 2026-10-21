@@ -1,0 +1,23 @@
+syntax = "proto3";
+package obs.v1;
+option go_package = "github.com/openSUSE/obs-ng/api/proto/obs/v1;obsv1";
+
+import "common.proto";
+
+service Index {
+  rpc UpdatePublished(UpdatePublishedRequest) returns (Empty);        // from publisher
+  rpc SearchPublished(SearchPublishedRequest) returns (SearchPublishedResponse);
+  rpc Collection(CollectionRequest) returns (SearchPublishedResponse);
+  rpc SearchPackages(XPathRequest) returns (stream PackageHit);
+  rpc SearchProjects(XPathRequest) returns (stream ProjectHit);
+  rpc DownloadURL(DownloadURLRequest) returns (DownloadURLResponse);
+}
+message UpdatePublishedRequest { string prp_ext = 1; string project = 2; bytes repoinfo_json = 3; bytes binaryorigins_json = 4; bytes patterninfo_json = 5; bool delete = 6; }
+message SearchPublishedRequest { string kind = 1; string match = 2; int32 limit = 3; bool withdownloadurl = 4; bool withscmsyncurl = 5; bool names_only = 6; }
+message SearchPublishedResponse { bytes results_json = 1; bool limited = 2; }
+message CollectionRequest { repeated string name = 1; repeated string project = 2; }
+message XPathRequest { string match = 1; int32 limit = 2; }
+message PackageHit { string project = 1; string package = 2; }
+message ProjectHit { string project = 1; }
+message DownloadURLRequest { Prpa prpa = 1; string path = 2; }
+message DownloadURLResponse { string url = 1; string path = 2; }
